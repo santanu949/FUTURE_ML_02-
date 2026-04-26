@@ -4,7 +4,11 @@ import pandas as pd
 from pydantic import BaseModel
 import uvicorn
 import os
+import sys
 import logging
+
+# Ensure 'src' is in path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
 
 # Configure Logging
 logging.basicConfig(level=logging.INFO)

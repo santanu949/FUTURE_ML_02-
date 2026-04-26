@@ -1,9 +1,15 @@
+import os
+import sys
+
+# Ensure 'src' is in path regardless of how the script is launched
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), "../../")))
+
 import streamlit as st
 import pandas as pd
 import numpy as np
 import joblib
-import os
 import matplotlib.pyplot as plt
+
 from src.models.evaluation import plot_confusion_matrix, plot_roc_curve, plot_lift_chart, plot_profit_curve
 
 st.set_page_config(page_title="AI Churn Intelligence", layout="wide", page_icon="📡")

@@ -29,7 +29,7 @@ def main():
         
     elif args.command == "app":
         print("Starting Enhanced Streamlit Dashboard...")
-        os.system("streamlit run src.app.dashboard.py")
+        os.system("streamlit run src/app/dashboard.py")
 
 if __name__ == "__main__":
     main()
