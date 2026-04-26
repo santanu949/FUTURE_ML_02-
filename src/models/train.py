@@ -1,31 +1,42 @@
 import pandas as pd
 import numpy as np
 import xgboost as xgb
-from sklearn.model_selection import train_test_split, RandomizedSearchCV
-from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix
+import lightgbm as lgb
+from catboost import CatBoostClassifier
+from sklearn.ensemble import StackingClassifier, RandomForestClassifier
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split, cross_val_score, RandomizedSearchCV
+from sklearn.metrics import classification_report, roc_auc_score, confusion_matrix, precision_recall_curve
 import os
 import joblib
+import logging
 from sklearn.pipeline import Pipeline
-from src.features.build_features import get_preprocessing_pipeline
+from src.features.build_features import get_production_pipeline
 
-def business_cost_score(y_true, y_pred):
+logger = logging.getLogger(__name__)
+
+def evaluate_business_impact(y_true, y_prob, threshold=0.5):
     """
-    Penalize False Negatives (missing a churner) more than False Positives.
-    Cost of missing a churner = $500 (lost revenue)
-    Cost of false alarm = $50 (marketing cost)
+    Calculates the financial impact of the model.
     """
+    y_pred = (y_prob > threshold).astype(int)
     tn, fp, fn, tp = confusion_matrix(y_true, y_pred).ravel()
-    total_cost = (fn * 500) + (fp * 50)
-    return total_cost
+    
+    # Costs
+    cost_miss = fn * 450 # Revenue lost from churner we missed
+    cost_marketing = fp * 40 # Cost of offering discount to loyalist
+    saving = tp * 300 # Net saving from retained churner (Revenue - Discount)
+    
+    net_impact = saving - cost_miss - cost_marketing
+    return net_impact
 
-def train_production_model():
+def train_ensemble_pipeline():
     # 1. Load Data
-    data_path = 'data/raw/telecom_churn_v2.csv'
+    data_path = 'data/raw/telecom_churn_v3.csv'
     if not os.path.exists(data_path):
-        from src.data.generator import TelecomDataGenerator
-        gen = TelecomDataGenerator()
+        from src.data.generator import EnhancedDataGenerator
+        gen = EnhancedDataGenerator()
         df = gen.generate(num_customers=5000)
-        os.makedirs('data/raw', exist_ok=True)
         df.to_csv(data_path, index=False)
     else:
         df = pd.read_csv(data_path)
@@ -36,49 +47,63 @@ def train_production_model():
     # 2. Split
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
 
-    # 3. Setup Pipeline
-    num_cols = ['age', 'estimated_salary', 'tenure_months', 'total_complaints', 
-                'avg_calls_3m', 'avg_data_3m', 'usage_drop_ratio', 'recharge_frequency']
-    cat_cols = ['gender', 'state', 'city', 'plan_type', 'tenure_group']
-
-    preprocessor = get_preprocessing_pipeline(num_cols, cat_cols)
-
-    # 4. Model & Hyperparams
-    clf = xgb.XGBClassifier(use_label_encoder=False, eval_metric='logloss')
+    # 3. Setup Preprocessing
+    # Define columns for ColumnTransformer (based on Engineer output)
+    num_cols = ['age', 'estimated_salary', 'tenure_days', 'total_complaints', 
+                'last_month_calls', 'last_month_data', 'last_month_sms', 
+                'avg_calls_6m', 'avg_data_6m', 'usage_drop_ratio', 'recharge_consistency',
+                'tenure_years', 'data_per_call', 'sms_to_call_ratio', 
+                'salary_usage_index', 'arpu_est', 'complaint_to_tenure_ratio', 
+                'usage_stability_index']
     
+    cat_cols = ['gender', 'state', 'city', 'plan_type', 'device_type', 
+                'payment_method', 'tenure_group']
+
+    preprocessor = get_production_pipeline(num_cols, cat_cols)
+
+    # 4. Define Base Models for Stacking
+    base_models = [
+        ('xgb', xgb.XGBClassifier(n_estimators=100, max_depth=5, learning_rate=0.1, eval_metric='logloss')),
+        ('lgb', lgb.LGBMClassifier(n_estimators=100, learning_rate=0.1, verbosity=-1)),
+        ('rf', RandomForestClassifier(n_estimators=100, max_depth=8, random_state=42))
+    ]
+
+    # Stacking Classifier with Logistic Regression as meta-learner
+    stack_clf = StackingClassifier(
+        estimators=base_models,
+        final_estimator=LogisticRegression(),
+        cv=5
+    )
+
     full_pipeline = Pipeline(steps=[
         ('preprocessor', preprocessor),
-        ('classifier', clf)
+        ('stacking', stack_clf)
     ])
 
-    param_dist = {
-        'classifier__n_estimators': [100, 200, 300],
-        'classifier__max_depth': [3, 5, 7],
-        'classifier__learning_rate': [0.01, 0.1, 0.2],
-        'classifier__subsample': [0.8, 1.0]
-    }
+    # 5. Training with Cross-Validation
+    logger.info("Starting Ensemble Stacking Training with 5-fold CV...")
+    cv_scores = cross_val_score(full_pipeline, X_train, y_train, cv=5, scoring='roc_auc')
+    logger.info(f"Mean CV ROC-AUC: {cv_scores.mean():.4f} (+/- {cv_scores.std():.4f})")
 
-    print("--- Starting Hyperparameter Tuning ---")
-    search = RandomizedSearchCV(full_pipeline, param_dist, n_iter=5, cv=3, scoring='roc_auc', verbose=1)
-    search.fit(X_train, y_train)
+    full_pipeline.fit(X_train, y_train)
 
-    best_model = search.best_estimator_
+    # 6. Detailed Evaluation
+    y_prob = full_pipeline.predict_proba(X_test)[:, 1]
+    y_pred = full_pipeline.predict(X_test)
+
+    logger.info("\n--- Production Model Performance ---")
+    logger.info(f"Test ROC-AUC: {roc_auc_score(y_test, y_prob):.4f}")
+    logger.info(f"Classification Report:\n{classification_report(y_test, y_pred)}")
     
-    # 5. Evaluate
-    y_pred = best_model.predict(X_test)
-    y_proba = best_model.predict_proba(X_test)[:, 1]
+    impact = evaluate_business_impact(y_test, y_prob)
+    logger.info(f"Estimated Business Impact (Net Saving): ${impact:,.2f}")
 
-    print("\n--- Model Evaluation ---")
-    print(classification_report(y_test, y_pred))
-    print(f"ROC AUC: {roc_auc_score(y_test, y_proba):.4f}")
-    print(f"Business Cost: ${business_cost_score(y_test, y_pred)}")
-
-    # 6. Save
+    # 7. Persistence
     os.makedirs('models', exist_ok=True)
-    joblib.dump(best_model, 'models/churn_model_v2.pkl')
-    print("\nModel saved to models/churn_model_v2.pkl")
+    joblib.dump(full_pipeline, 'models/churn_ensemble_v3.pkl')
+    logger.info("Model v3 saved successfully.")
 
-    return best_model
+    return full_pipeline
 
 if __name__ == "__main__":
-    train_production_model()
+    train_ensemble_pipeline()

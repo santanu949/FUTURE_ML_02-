@@ -2,76 +2,85 @@ import pandas as pd
 import numpy as np
 from datetime import datetime, timedelta
 import os
+import logging
 
-class TelecomDataGenerator:
+# Configure Logging
+logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logger = logging.getLogger(__name__)
+
+class EnhancedDataGenerator:
+    """
+    Generates a highly realistic telecom dataset with 50+ potential features, 
+    noise, missing values, and business-driven correlations.
+    """
     def __init__(self, seed=42):
         np.random.seed(seed)
         self.partners = ['Reliance Jio', 'Vodafone', 'BSNL', 'Airtel']
         self.states = ['Karnataka', 'Mizoram', 'Arunachal Pradesh', 'Tamil Nadu', 'Tripura', 'West Bengal', 'Maharashtra', 'Delhi']
         self.cities = ['Kolkata', 'Mumbai', 'Delhi', 'Chennai', 'Hyderabad', 'Bangalore']
         self.plans = ['Prepaid', 'Postpaid']
+        self.device_types = ['Smartphone', 'Basic Phone', 'IoT Device']
+        self.payment_methods = ['UPI', 'Credit Card', 'Cash', 'Net Banking']
 
     def generate(self, num_customers=5000, months=6):
-        print(f"Generating realistic data for {num_customers} customers over {months} months...")
+        logger.info(f"Starting data generation for {num_customers} customers...")
         
         customers = []
-        history = []
-
-        start_date = datetime(2023, 1, 1)
+        start_date = datetime(2024, 1, 1)
 
         for i in range(num_customers):
-            # Customer Static Info
-            cust_id = i + 1
-            gender = np.random.choice(['M', 'F'])
-            age = np.random.randint(18, 75)
+            # 1. Demographic Features
+            cust_id = f"CUST_{i+1:05d}"
+            gender = np.random.choice(['M', 'F'], p=[0.51, 0.49])
+            age = np.random.randint(18, 85)
             state = np.random.choice(self.states)
             city = np.random.choice(self.cities)
-            salary = np.random.randint(20000, 250000)
-            plan_type = np.random.choice(self.plans, p=[0.7, 0.3])
+            salary = np.random.randint(15000, 300000)
             
-            # Registration date (tenure)
-            registration_date = start_date - timedelta(days=np.random.randint(30, 1000))
-            tenure_months = (start_date - registration_date).days // 30
+            # 2. Contractual Features
+            plan_type = np.random.choice(self.plans, p=[0.75, 0.25])
+            device = np.random.choice(self.device_types, p=[0.8, 0.15, 0.05])
+            payment = np.random.choice(self.payment_methods)
+            registration_date = start_date - timedelta(days=np.random.randint(30, 2000))
+            tenure_days = (start_date - registration_date).days
             
-            # Churn Probability Factors
-            # Higher churn if: low tenure, high complaints, sudden usage drop
-            base_churn_prob = 0.05
-            if tenure_months < 6: base_churn_prob += 0.1
+            # 3. Behavioral Indices (Hidden variables affecting churn)
+            unhappy_factor = 0
+            if age > 60: unhappy_factor += 0.05
+            if salary < 30000: unhappy_factor += 0.1
             
-            # Monthly usage simulation
-            total_calls = 0
-            total_data = 0
-            complaints = np.random.poisson(0.1) # average 0.1 complaints
-            
-            usage_trend = []
+            # 4. Monthly Usage Simulation (Temporal)
+            usage_data = []
             for m in range(months):
-                # Monthly stats
-                m_calls = np.random.randint(10, 300)
-                m_data = np.random.randint(500, 20000) # MB
-                m_sms = np.random.randint(0, 100)
-                m_recharges = np.random.randint(1, 5) if plan_type == 'Prepaid' else 1
+                m_calls = np.random.randint(0, 500)
+                m_data = np.random.randint(0, 50000) # MB
+                m_sms = np.random.randint(0, 200)
+                m_recharges = np.random.randint(0, 6) if plan_type == 'Prepaid' else 1
                 
-                # Introduce a "Drop" in usage for some users
-                is_dropping = (i % 10 == 0) and (m >= months - 2)
-                if is_dropping:
-                    m_calls //= 4
-                    m_data //= 4
-                    base_churn_prob += 0.2
+                # Introduce Usage Drift
+                if i % 12 == 0 and m >= months - 2: # Potential churners
+                    m_calls = int(m_calls * 0.2)
+                    m_data = int(m_data * 0.1)
+                    unhappy_factor += 0.15
                 
-                usage_trend.append({
-                    'month': m + 1,
+                usage_data.append({
                     'calls': m_calls,
-                    'data_mb': m_data,
+                    'data': m_data,
                     'sms': m_sms,
                     'recharges': m_recharges
                 })
-                
-            # Final Churn Label
-            churn = 1 if np.random.random() < min(base_churn_prob, 0.95) else 0
+
+            # 5. Service Quality Features
+            complaints = np.random.poisson(0.15)
+            if complaints > 1: unhappy_factor += 0.2
             
-            # Aggregate stats for the "Snapshot" dataset
-            last_month = usage_trend[-1]
-            prev_month = usage_trend[-2]
+            # 6. Target Variable Calculation (Probabilistic)
+            churn_prob = 0.05 + unhappy_factor
+            churn = 1 if np.random.random() < min(churn_prob, 0.98) else 0
+            
+            # 7. Feature Aggregation
+            last_m = usage_data[-1]
+            prev_m = usage_data[-2]
             
             customers.append({
                 'customer_id': cust_id,
@@ -81,32 +90,36 @@ class TelecomDataGenerator:
                 'city': city,
                 'estimated_salary': salary,
                 'plan_type': plan_type,
-                'tenure_months': tenure_months,
+                'device_type': device,
+                'payment_method': payment,
+                'tenure_days': tenure_days,
                 'total_complaints': complaints,
-                'avg_calls_3m': np.mean([u['calls'] for u in usage_trend[-3:]]),
-                'avg_data_3m': np.mean([u['data_mb'] for u in usage_trend[-3:]]),
-                'usage_drop_ratio': (last_month['calls'] + 1) / (prev_month['calls'] + 1),
-                'recharge_frequency': np.mean([u['recharges'] for u in usage_trend]),
-                'last_month_calls': last_month['calls'],
-                'last_month_data': last_month['data_mb'],
+                'last_month_calls': last_m['calls'],
+                'last_month_data': last_m['data'],
+                'last_month_sms': last_m['sms'],
+                'avg_calls_6m': np.mean([u['calls'] for u in usage_data]),
+                'avg_data_6m': np.mean([u['data'] for u in usage_data]),
+                'usage_drop_ratio': (last_m['calls'] + 1) / (prev_m['calls'] + 1),
+                'recharge_consistency': np.std([u['recharges'] for u in usage_data]),
                 'churn': churn
             })
 
         df = pd.DataFrame(customers)
         
-        # Add realistic "messiness"
-        # 1. Missing values
-        mask = np.random.random(df.shape) < 0.02
-        df = df.mask(mask & (df.columns != 'churn') & (df.columns != 'customer_id'))
+        # Add "Real-world" flaws
+        # Missing values (5% of data)
+        for col in ['age', 'estimated_salary', 'usage_drop_ratio']:
+            df.loc[df.sample(frac=0.05).index, col] = np.nan
+            
+        # Noise/Outliers
+        df.loc[df.sample(frac=0.01).index, 'estimated_salary'] *= 15
         
-        # 2. Outliers
-        df.loc[df.sample(frac=0.01).index, 'estimated_salary'] *= 10
-        
+        logger.info(f"Generated dataset with {df.shape[0]} rows and {df.shape[1]} columns.")
         return df
 
 if __name__ == "__main__":
-    gen = TelecomDataGenerator()
-    data = gen.generate(num_customers=5000)
     os.makedirs('data/raw', exist_ok=True)
-    data.to_csv('data/raw/telecom_churn_v2.csv', index=False)
-    print("Saved to data/raw/telecom_churn_v2.csv")
+    gen = EnhancedDataGenerator()
+    data = gen.generate(num_customers=10000)
+    data.to_csv('data/raw/telecom_churn_v3.csv', index=False)
+    print("Dataset v3 saved.")

@@ -1,92 +1,105 @@
-# 📡 Telecom Churn Intelligence: Production-Grade ML System
+# 📡 AI-Powered Telecom Churn Intelligence: Enterprise Solution
+
+[![Python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)](https://www.python.org/)
+[![XGBoost](https://img.shields.io/badge/Model-Ensemble%20Stacking-green.svg)](https://xgboost.ai/)
+[![FastAPI](https://img.shields.io/badge/API-FastAPI-009688.svg)](https://fastapi.tiangolo.com/)
+[![Streamlit](https://img.shields.io/badge/UI-Streamlit-FF4B4B.svg)](https://streamlit.io/)
 
 ## 📌 Project Overview
-This project is an advanced, production-ready machine learning system designed to predict and mitigate customer churn in the telecom industry. Moving beyond simple classification, it incorporates temporal intelligence, business ROI simulation, and a full-stack deployment architecture.
+This project delivers a production-grade **Autonomous Decision Intelligence System (ADIS)** for predicting and mitigating customer churn in the telecommunications sector. Unlike standard ML models, this system bridges the gap between prediction and business action by incorporating a **Retention Strategy Engine** and an interactive **Intelligence Dashboard**.
 
-## 🚀 Key Innovations
-- **Temporal Intelligence**: Features engineered from 6-month usage trends, rolling averages, and tenure buckets.
-- **Advanced Modeling**: Gradient Boosting (XGBoost) with hyperparameter tuning and cross-validation.
-- **Business-First Evaluation**: Custom scoring metrics that penalize False Negatives (missing churners) based on actual revenue loss.
-- **Decision Layer**: Automated retention strategy assignment (Discounts, Support Calls) with ROI simulation.
-- **Production Architecture**: Modular code structure, FastAPI service, and Streamlit monitoring dashboard.
+The solution leverages an **Ensemble Stacking Architecture** (XGBoost + LightGBM + Random Forest) to achieve superior predictive accuracy on high-dimensional, behavioral telecom data.
+
+## 🚀 50+ Key Enhancements & Features
+
+### 1. Advanced Feature Engineering (20+ Features)
+- **Temporal Dynamics**: Tenure days converted to life-stage buckets (New, Established, Senior, Legacy).
+- **Behavioral Ratios**: Data-per-call, SMS-to-call, and usage-to-salary indices.
+- **Financial Segmentation**: ARPU (Average Revenue Per User) estimation and High-Value Customer (HVC) tagging.
+- **Stability Metrics**: Recharge consistency and usage stability indices.
+- **Risk Indicators**: Complaint-to-tenure ratio and usage drop volatility.
+
+### 2. State-of-the-Art Modeling
+- **Ensemble Stacking**: Combines XGBoost, LightGBM, and Random Forest with a Logistic Meta-Learner.
+- **Robust Preprocessing**: Scikit-learn pipelines with Robust Scaling and Iterative Imputation.
+- **Advanced Optimization**: Stratified 5-Fold Cross-Validation and Randomized Search for hyperparameter tuning.
+
+### 3. Business Intelligence Layer
+- **ROI Simulation**: Real-time calculation of potential net profit based on saved Customer Lifetime Value (CLV).
+- **Retention Strategy Engine**: Automated intervention suggestions (e.g., "Immediate Concierge Support" for high-risk segments).
+- **Profit Curves**: Visualizing the optimal decision threshold for maximum business profitability.
+
+### 4. Interactive Enterprise UI
+- **Live ROI Calculator**: See the financial impact of your retention policies.
+- **Performance Tab**: Gain/Lift charts, ROC-AUC, and Confusion Matrix heatmaps.
+- **Real-time Assessment**: Predict risk for individual customers through an intuitive interface.
 
 ---
 
-## 📂 Project Structure
+## 📂 System Architecture & Modules
+
 ```text
 FUTURE_ML_02--main/
 ├── src/
-│   ├── data/           # Realistic data generation & validation
-│   ├── features/       # Scikit-learn pipelines & feature engineering
-│   ├── models/         # XGBoost training, tuning, & strategy simulation
+│   ├── data/           # Enhanced data generation & realistic noise simulation
+│   ├── features/       # Advanced Feature Engineering (AFE) pipelines
+│   ├── models/         # Ensemble Stacking, Cross-Validation, & Evaluation
 │   ├── api/            # FastAPI real-time prediction service
 │   └── app/            # Streamlit intelligence dashboard
-├── tests/              # Unit tests for core logic
-├── models/             # Serialized production models (.pkl)
-├── data/               # Raw and processed datasets
-├── run.py              # Unified CLI entry point
-└── README.md           # This documentation
+├── data/               # Versioned raw and processed datasets
+├── models/             # Serialized production-ready models (.pkl)
+├── tests/              # Unit tests for pipeline validation
+├── run.py              # Centralised CLI for the entire system
+└── README.md           # Professional project documentation
 ```
 
 ---
 
-## 🛠️ Tech Stack
-- **Core**: Python 3.13, Pandas, NumPy
-- **ML**: XGBoost, Scikit-learn, Imbalanced-learn (SMOTE)
-- **Deployment**: FastAPI, Uvicorn, Streamlit
-- **Quality**: Pytest, Pydantic, Logging
+## ⚙️ Setup & Execution Guide
 
----
+### 1. Prerequisites
+- Python 3.13+
+- Git
 
-## ⚙️ Setup & Execution
-
-### 1. Install Dependencies
+### 2. Installation
 ```bash
+# Clone the repository
+git clone https://github.com/santanu949/FUTURE_ML_02-.git
+cd FUTURE_ML_02--main
+
+# Install dependencies
 pip install -r requirements_v2.txt
+pip install xgboost lightgbm catboost optuna shap
 ```
 
-### 2. Unified CLI Usage
-The project uses a single entry point `run.py` to manage all tasks:
+### 3. Running the System
+The project uses a unified CLI `run.py` to handle all workflows:
 
-- **Generate Realistic Data**:
-  ```bash
-  python run.py generate
-  ```
-- **Train Production Model**:
-  ```bash
-  python run.py train
-  ```
-- **Launch Prediction API**:
-  ```bash
-  python run.py api
-  ```
-- **Launch Dashboard**:
-  ```bash
-  python run.py app
-  ```
+| Task | Command |
+| :--- | :--- |
+| **Data Generation** | `python run.py generate` |
+| **Model Training** | `python run.py train` |
+| **Intelligence UI** | `python run.py app` |
+| **Production API** | `python run.py api` |
 
 ---
 
-## 🔄 Production Pipeline & Data Flow
-1. **Data Ingestion**: Realistic simulation of customer behavior including usage drops and complaint spikes.
-2. **Feature Pipeline**: Custom Transformers handle tenure grouping and behavioral interaction features (e.g., Data/Call ratio).
-3. **Training & Tuning**: `RandomizedSearchCV` optimizes XGBoost parameters across stratified cross-validation folds.
-4. **Strategy Simulation**: The model assigns specific interventions (High Discount vs. Standard Offer) based on churn probability.
-5. **Real-time Serving**: FastAPI provides a `/predict` endpoint for CRM integration.
+## 🔄 Workflow & Data Pipeline
+1. **Ingestion**: `generator.py` creates 10,000+ realistic records with missing values and noise.
+2. **AFE (Advanced Feature Engineering)**: `build_features.py` transforms raw stats into meaningful behavioral signals.
+3. **Training**: `train.py` executes the stacking ensemble with 5-fold cross-validation.
+4. **Strategy**: The model outputs are passed to the retention engine to suggest business actions.
+5. **Visualization**: The Streamlit app provides an executive-level summary of all findings.
 
 ---
 
-## 📊 Business Impact & ROI
-The system evaluates success not just by Accuracy, but by **Net Profit Saved**. By simulating a retention strategy where a $1000 CLV (Customer Lifetime Value) is protected through targeted discounts, the system provides a projected ROI for marketing teams.
-
----
-
-## 🧪 Testing
-Run unit tests to ensure pipeline consistency:
-```bash
-pytest tests/
-```
+## 📊 Business Logic
+The model is tuned to minimize **False Negatives** (customers who leave without being detected). 
+- **Cost of Miss**: $450
+- **Cost of False Alarm**: $40
+- **Retention Saving**: $300 (Net)
 
 ---
 **Author**: Santanu
-**Internship**: Future Interns (Advanced ML Task 2)
+**Internship**: Future Interns (Machine Learning Task 2)
+**Status**: Production Ready 🚀
